@@ -144,23 +144,10 @@ app.post('/webhook/whatsapp', async (req, res) => {
   const tx = parseMessage(text);
   if (tx) {
     pending.push(tx);
-    // Don't reply to outgoing messages (would message the other person)
+    // Only reply with confirmation for incoming messages (not outgoing, to avoid loops/messaging others)
     if (!isOutgoing) await sendReply(chatId, confirmMessage(tx));
-  } else {
-    // Only send help message for incoming messages
-    if (!isOutgoing) {
-      await sendReply(chatId, [
-        '❓ Could not understand that.',
-        '',
-        'Try:',
-        '  paid 50 coffee',
-        '  paid 100000 lbp uber',
-        '  paid 30 bank lunch',
-        '  received 1500 salary',
-        '  spent 200 savings shopping',
-      ].join('\n'));
-    }
   }
+  // No reply for unrecognized messages — normal conversations are silently ignored
 });
 
 // ─── React app polling endpoints ──────────────────────────────────────────────
