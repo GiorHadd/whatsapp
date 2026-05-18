@@ -128,6 +128,8 @@ app.post('/webhook/whatsapp', async (req, res) => {
   const allowedWebhooks = ['incomingMessageReceived', 'outgoingMessageReceived'];
   if (!allowedWebhooks.includes(type)) return;
 
+  const isOutgoing = type === 'outgoingMessageReceived';
+
   // Extract text — handles both textMessage and extendedTextMessage
   let text = '';
   if (msgType === 'textMessage') {
@@ -142,18 +144,22 @@ app.post('/webhook/whatsapp', async (req, res) => {
   const tx = parseMessage(text);
   if (tx) {
     pending.push(tx);
-    await sendReply(chatId, confirmMessage(tx));
+    // Don't reply to outgoing messages (would message the other person)
+    if (!isOutgoing) await sendReply(chatId, confirmMessage(tx));
   } else {
-    await sendReply(chatId, [
-      '❓ Could not understand that.',
-      '',
-      'Try:',
-      '  paid 50 coffee',
-      '  paid 100000 lbp uber',
-      '  paid 30 bank lunch',
-      '  received 1500 salary',
-      '  spent 200 savings shopping',
-    ].join('\n'));
+    // Only send help message for incoming messages
+    if (!isOutgoing) {
+      await sendReply(chatId, [
+        '❓ Could not understand that.',
+        '',
+        'Try:',
+        '  paid 50 coffee',
+        '  paid 100000 lbp uber',
+        '  paid 30 bank lunch',
+        '  received 1500 salary',
+        '  spent 200 savings shopping',
+      ].join('\n'));
+    }
   }
 });
 
