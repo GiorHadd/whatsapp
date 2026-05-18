@@ -107,19 +107,35 @@ async function sendReply(chatId, message) {
   }
 }
 
+// ─── Store last 10 raw webhooks for debugging ─────────────────────────────────
+const debugLog = [];
+
 // ─── Green API webhook ────────────────────────────────────────────────────────
 app.post('/webhook/whatsapp', async (req, res) => {
-  res.sendStatus(200); // always respond immediately to Green API
+  res.sendStatus(200);
 
   const body = req.body;
-  const type = body?.typeWebhook;
 
-  // Handle both incoming AND outgoing (sent from phone / Notes to self)
-  const allowed = ['incomingMessageReceived', 'outgoingMessageReceived'];
-  if (!allowed.includes(type)) return;
-  if (body?.messageData?.typeMessage !== 'textMessage') return;
+  // Log everything for debugging
+  debugLog.unshift({ time: new Date().toISOString(), body });
+  if (debugLog.length > 10) debugLog.pop();
+  console.log('WEBHOOK RECEIVED:', JSON.stringify(body, null, 2));
 
-  const text   = body?.messageData?.textMessageData?.textMessage || '';
+  const type    = body?.typeWebhook;
+  const msgType = body?.messageData?.typeMessage;
+
+  // Accept incoming + outgoing messages
+  const allowedWebhooks = ['incomingMessageReceived', 'outgoingMessageReceived'];
+  if (!allowedWebhooks.includes(type)) return;
+
+  // Extract text — handles both textMessage and extendedTextMessage
+  let text = '';
+  if (msgType === 'textMessage') {
+    text = body?.messageData?.textMessageData?.textMessage || '';
+  } else if (msgType === 'extendedTextMessage') {
+    text = body?.messageData?.extendedTextMessageData?.text || '';
+  }
+
   const chatId = body?.senderData?.chatId || '';
   if (!text || !chatId) return;
 
@@ -149,6 +165,7 @@ function checkKey(req, res) {
 }
 
 app.get('/',              (req, res) => res.json({ status: 'ok', pending: pending.length }));
+app.get('/debug',         (req, res) => { if (!checkKey(req, res)) return; res.json({ pending, debugLog }); });
 app.get('/api/pending',   (req, res) => { if (!checkKey(req, res)) return; res.json(pending); });
 app.post('/api/processed',(req, res) => {
   if (!checkKey(req, res)) return;
